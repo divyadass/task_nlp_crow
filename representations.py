@@ -1,14 +1,30 @@
 # import feature extraction methods from sklearn
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
 import numpy as np
+
+from utils import clean
 
 ## methods for WE representation of text data
 
 # Creating a feature vector by averaging all embeddings for all sentences
 def embedding_feats(list_of_lists, embeddings):
+    """
+    Generates word embedding based vector representation of input documents.
+    
+    Parameters
+    ----------
+    list_of_lists : list of list containing str
+        List of List containing input data.
+    embeddings : dict
+        Dictionary containing word and corresponding WE vector.
+        
+    Returns
+    -------
+    feats : list of array
+        Input data represented as a List of array. Array shape being equal to size of embedding chosen.
+    """
     DIMENSION = 100
     zero_vector = np.zeros(DIMENSION)
     feats = []
@@ -34,44 +50,113 @@ def embedding_feats(list_of_lists, embeddings):
 #     z.extractall()
 
 def make_embedding_dict():
-  EMBEDDING_FILE = 'data/glove.6B.100d.txt'
-  embeddings = {}
-  for o in open(EMBEDDING_FILE, encoding="utf8"):
+    """
+    Generates embedding dictionary.
+    
+    Uses the Embeddings text file to create a dictionary containing WORD as key and associated
+    word embedding vector as value. 
+    
+    Returns
+    -------
+    dict:
+        Dictionary of word and embedding vector. 
+    """
+    EMBEDDING_FILE = 'data/glove.6B.100d.txt'
+    embeddings = {}
+    for o in open(EMBEDDING_FILE, encoding="utf8"):
       word = o.split(" ")[0]
       # print(word)
       embd = o.split(" ")[1:]
       embd = np.asarray(embd, dtype='float32')
       # print(embd)
       embeddings[word] = embd
-  return embeddings
+    return embeddings
   
   
 ## methods for text-representations
+def BoW_representation(train, test, max_features=None):
+    """
+    Generates BoW representation
+    
+    Uses sklearn CountVectorizer to preprocess and generate BoW representation of text.
+    
+    Parameters
+    ----------
+    train : pandas.core.series.Series
+        pandas series containing training text data
+    test : pandas.core.series.Series
+        pandas series containing testing text data
+    max_features : int, default 'None'
+        Number indicating count of vocab to be used
+    
+    Returns
+    -------
+    train_dtm : scipy.sparse.csr.csr_matrix
+        train data with BoW representation 
+    test_dtm : scipy.sparse.csr.csr_matrix
+        test data with BoW representation 
+    """  
+    vect = CountVectorizer(preprocessor=clean, max_features=max_features) # instantiate a vectoriezer
+    train_dtm = vect.fit_transform(train) # use it to extract features from training data
+    test_dtm = vect.transform(test) # transform testing data (using training data's features)
+    print("train data:", train_dtm.shape, "test data:", test_dtm.shape)
+    return train_dtm, test_dtm 
 
-def BoW_representation(max_features=None):
-  vect = CountVectorizer(preprocessor=clean, max_features=max_features) # instantiate a vectoriezer
-  X_train_dtm = vect.fit_transform(X_train) # use it to extract features from training data
-  X_test_dtm = vect.transform(X_test) # transform testing data (using training data's features)
-  print("train data:", X_train_dtm.shape, "test data:", X_test_dtm.shape)
-  return X_train_dtm, X_test_dtm 
+def tf_idf_representation(train, test, max_features=None):
+    """
+    Generates TF-IDF representation
+    
+    Uses sklearn TfidfVectorizer to preprocess and generate BoW representation of text.
+    
+    Parameters
+    ----------
+    train : pandas.core.series.Series
+        pandas series containing training text data
+    test : pandas.core.series.Series
+        pandas series containing testing text data
+    max_features : int, default 'None'
+        Number indicating count of vocab to be used
+    
+    Returns
+    -------
+    train_tfidf : scipy.sparse.csr.csr_matrix
+        Train data with TF-IDF representation. 
+    test_tfidf : scipy.sparse.csr.csr_matrix
+        Test data with TF-IDF representation.
+    """
+    vect = TfidfVectorizer(preprocessor=clean, max_features=max_features) # instantiate a vectoriezer
+    train_tfidf = vect.fit_transform(train) # use it to extract features from training data
+    test_tfidf = vect.transform(test) # transform testing data (using training data's features)
+    print("train data:", train_tfidf.shape, "test data:", test_tfidf.shape)
+    return train_tfidf, test_tfidf
 
-def tf_idf_representation(max_features=None):
-  vect = TfidfVectorizer(preprocessor=clean, max_features=max_features) # instantiate a vectoriezer
-  X_train_tfidf = vect.fit_transform(X_train) # use it to extract features from training data
-  X_test_tfidf = vect.transform(X_test) # transform testing data (using training data's features)
-  print("train data:", X_train_tfidf.shape, "test data:",X_test_tfidf.shape)
-  return X_train_tfidf, X_test_tfidf
+def word2Vec(train, test):
+    """
+    Generates word embedding vector for each document in the training and testing corpus.
+    
+    Parameters
+    ----------
+    train : pandas.core.series.Series
+        Pandas series containing training text data.
+    test : pandas.core.series.Series
+        Pandas series containing testing text data.
+    
+    Returns
+    -------
+    train_we : list of array
+        Train data represented as a List of array. Array shape being equal to size of embedding chosen.
+    test_we : list of array
+        Test data represented as a List of array. Array shape being equal to size of embedding chosen.
+    """
+    embeddings = make_embedding_dict()
+    # embeddings_set  = set(embeddings.keys())
 
-def word2Vec():
-  embeddings = make_embedding_dict()
-  # embeddings_set  = set(embeddings.keys())
+    train_clean = train.reset_index(drop=True).apply(lambda x: clean(x))
+    test_clean = test.reset_index(drop=True).apply(lambda x: clean(x))
+    train_list=list(train_clean.apply(lambda x: x.split()))
+    test_list=list(test_clean.apply(lambda x: x.split()))
 
-  X_train_clean = X_train.reset_index(drop=True).apply(lambda x: clean(x))
-  X_test_clean = X_test.reset_index(drop=True).apply(lambda x: clean(x))
-  X_train_list=list(X_train_clean.apply(lambda x: x.split()))
-  X_test_list=list(X_test_clean.apply(lambda x: x.split()))
+    train_we=embedding_feats(train_list, embeddings)
+    test_we=embedding_feats(test_list, embeddings)
 
-  X_train_we=embedding_feats(X_train_list, embeddings)
-  X_test_we=embedding_feats(X_test_list, embeddings)
-
-  return X_train_we, X_test_we
+    return train_we, test_we
